@@ -51,6 +51,13 @@ class SettingsTab(ttk.Frame):
         self.status_label = ttk.Label(self, text="")
         self.status_label.pack(pady=5)
 
+        # Placeholder for queue_manager
+        self.queue_manager = None
+
+    def set_queue_manager(self, queue_manager):
+        """Attach a QueueManager instance to settings tab for dynamic updates."""
+        self.queue_manager = queue_manager
+
     def browse_folder(self):
         folder = filedialog.askdirectory()
         if folder:

@@ -1,6 +1,6 @@
 # core/queue_manager.py
 from queue import Queue
-from threading import Thread
+from threading import Thread, Lock
 from .downloader import Downloader
 
 class QueueManager:
@@ -12,10 +12,12 @@ class QueueManager:
         self.queue = Queue()
         self.active_workers = 0
         self.max_workers = downloader.max_threads
+        self.lock = Lock()  # protect active_workers
 
     def add_job(self, url: str, format_id: str, callback=None):
         """
         Add a new download job to the queue.
+        callback: function(title:str, path:str) called after download
         """
         self.queue.put({"url": url, "format": format_id, "callback": callback})
         self._start_workers()
@@ -24,10 +26,11 @@ class QueueManager:
         """
         Start worker threads up to max_workers
         """
-        while self.active_workers < self.max_workers and not self.queue.empty():
-            t = Thread(target=self._worker, daemon=True)
-            t.start()
-            self.active_workers += 1
+        with self.lock:
+            while self.active_workers < self.max_workers and not self.queue.empty():
+                t = Thread(target=self._worker, daemon=True)
+                t.start()
+                self.active_workers += 1
 
     def _worker(self):
         """
@@ -35,9 +38,20 @@ class QueueManager:
         """
         while not self.queue.empty():
             job = self.queue.get()
-            self.downloader._download(job["url"], job["format"], job.get("callback"))
-            self.queue.task_done()
-        self.active_workers -= 1
+            try:
+                # Downloader returns file_path
+                file_path, title = self.downloader._download(job["url"], job["format"])
+                if job.get("callback"):
+                    job["callback"](title, file_path)
+            except Exception as e:
+                print(f"Download failed: {e}")
+                if job.get("callback"):
+                    job["callback"](title or "Unknown", None)
+            finally:
+                self.queue.task_done()
+
+        with self.lock:
+            self.active_workers -= 1
 
     def get_queue_size(self):
         """

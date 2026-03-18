@@ -4,24 +4,17 @@ from tkinter import ttk, messagebox
 from PIL import Image, ImageTk
 import requests
 from io import BytesIO
-from core.downloader import Downloader
-from core.queue_manager import QueueManager
 from core.metadata import get_video_info, get_formats
 from core.formats import list_video_formats, get_highest_quality
 from core.filename_cleaner import clean_filename
 
 class DownloadTab(ttk.Frame):
-    def __init__(self, parent, settings_tab=None, history_tab=None):
+    def __init__(self, parent, queue_manager, settings_tab=None, history_tab=None):
         super().__init__(parent)
 
+        self.queue_manager = queue_manager
         self.settings_tab = settings_tab
         self.history_tab = history_tab
-
-        # Downloader & Queue
-        download_path = self.settings_tab.settings["download_path"] if self.settings_tab else None
-        max_threads = self.settings_tab.settings["max_threads"] if self.settings_tab else 2
-        self.downloader = Downloader(download_path=download_path, max_threads=max_threads)
-        self.queue_manager = QueueManager(self.downloader)
 
         # URL input
         ttk.Label(self, text="Video URL:").pack(pady=5, anchor="w")
